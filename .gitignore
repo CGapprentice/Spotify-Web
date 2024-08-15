@@ -21,21 +21,4 @@ __pycache__/
 # Windows
 Thumbs.db
 
-# Logs and temp files
-*.log
-*.tmp
-*.bak
-*.swp
 
-# Distribution / packaging
-build/
-dist/
-*.egg-info/
-
-# Jupyter Notebooks
-.ipynb_checkpoints/
-
-# Data and backups
-*.sqlite3
-*.db
-*.csv
