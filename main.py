@@ -20,7 +20,6 @@ AUTH_URL = "https://accounts.spotify.com/authorize"
 TOKEN_URL = "https://accounts.spotify.com/api/token"
 API_BASE_URL = "https://api.spotify.com/v1/"
 
-print(CLIENT_ID + CLIENT_SECRET + REDIRECT_URI)
 
 @app.route('/')
 def index():
@@ -57,13 +56,12 @@ def callback():
     response = requests.post(TOKEN_URL, data=req_body)
     token_info = response.json()
 
-    print("Spotify Token Response:", token_info)
 
     session['access_token'] = token_info['access_token']
     session['refresh_token'] = token_info['refresh_token']
     session['expires_at'] = datetime.now().timestamp() + token_info['expires_in']
     
-    return redirect('/playlists')
+    return redirect('/')
 
 
 @app.route('/playlists')
@@ -81,6 +79,26 @@ def get_playlists():
     playlists = response.json()
 
     return jsonify(playlists)
+
+@app.route('/artist/<artist_id>/albums')
+def get_artist_albums(artist_id):
+    # Check if the access token is in the session
+    if 'access_token' not in session:
+        return redirect('/login')
+    
+    # Prepare headers for the API call
+    headers = {
+        'Authorization': f"Bearer {session['access_token']}"
+    }
+
+    # Make the API call to fetch the artist's albums
+    response = requests.get(f"{API_BASE_URL}artists/{"14Ah9L7Sei8VOOty0tZrOR"}/albums", headers=headers)
+    
+    if response.status_code == 200:
+        albums_info = response.json()
+        return jsonify(albums_info)
+    else:
+        return jsonify({"error": "Failed to retrieve artist's albums", "details": response.json()})
 
 
 @app.route('/refresh-token')
@@ -101,10 +119,7 @@ def refresh_token():
     session['access_token'] = new_token_info['access_token']
     session['expires_at'] = datetime.now().timestamp() + new_token_info['expires_in']
 
-    return redirect('/albums')
-
-
-# print(client_id, client_secret)
+    return redirect('/')
 
 
 if __name__ == "__main__":
