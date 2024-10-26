@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DiscogMe</title>
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -42,10 +43,14 @@
             <div class="navbar-center">
                 <input class="form-control search-bar" type="search" placeholder="Search" aria-label="Search">
             </div>
-            <!-- Right-aligned Login Button -->
+            <!-- Right-aligned Login Button / Display Name -->
             <ul class="navbar-nav ml-auto">
                 <li class="nav-item">
-                    <a class="btn btn-outline-primary" href="/login">Login</a>
+                    {% if logged_in %}
+                        <a class="nav-link" href="{{ profile_url }}" target="_blank">Hello, {{ display_name }}</a>
+                    {% else %}
+                        <a class="btn btn-outline-primary" href="/login">Login</a>
+                    {% endif %}
                 </li>
             </ul>
         </div>
@@ -55,6 +60,7 @@
     <div class="content">
         <h1>Welcome to DiscogMe</h1>
         <p>Your personalized music experience starts here.</p>
+        <button class="spotify-button">Get Started</button>
     </div>
 
     <!-- Bootstrap JS -->

@@ -23,7 +23,10 @@ API_BASE_URL = "https://api.spotify.com/v1/"
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    logged_in = 'access_token' in session and datetime.now().timestamp() < session['expires_at']
+    display_name = session.get('display_name', None)
+    profile_url = session.get('profile_url', None)
+    return render_template('index.html', logged_in=logged_in, display_name=display_name, profile_url=profile_url)
 
 @app.route('/login')
 def login():
@@ -60,6 +63,17 @@ def callback():
     session['access_token'] = token_info['access_token']
     session['refresh_token'] = token_info['refresh_token']
     session['expires_at'] = datetime.now().timestamp() + token_info['expires_in']
+
+    headers = {
+        'Authorization': f"Bearer {session['access_token']}"
+    }
+    profile_response = requests.get(API_BASE_URL + 'me', headers=headers)
+    profile_info = profile_response.json()
+    print("Profile Info:", profile_info)
+
+    session['display_name'] = profile_info['display_name']
+    session['profile_url'] = profile_info['external_urls']['spotify']
+    print("Profile url:", session['profile_url'])
     
     return redirect('/')
 
