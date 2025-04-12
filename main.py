@@ -7,6 +7,8 @@ import urllib.parse
 from datetime import datetime
 import calendar
 from flask import Flask, redirect, request, jsonify, session, render_template
+from spotify_helpers import get_saved_albums
+# from spotify_helpers import get_saved_albums
 
 
 app = Flask(__name__)
@@ -30,7 +32,7 @@ def index():
 
 @app.route('/login')
 def login():
-    scope = 'user-read-private user-read-email'
+    scope = 'user-read-private user-read-email user-library-read'
 
     params = {
         'client_id': CLIENT_ID,
@@ -135,6 +137,29 @@ def refresh_token():
 
     return redirect('/')
 
+    
+@app.route('/saved-albums')
+def saved_albums():
+    if 'access_token' not in session:
+        return redirect('/login')
+    
+    access_token = session['access_token']
+    saved_albums = get_saved_albums(access_token)  # Call the helper function
+    return jsonify(saved_albums)
+    
+
+@app.route('/albums')
+def albums_page():
+    logged_in = 'access_token' in session and datetime.now().timestamp() < session['expires_at']
+    
+    # If not logged in, redirect to login
+    if not logged_in:
+        return redirect('/login')
+    
+    display_name = session.get('display_name', None)
+    profile_url = session.get('profile_url', None)
+    
+    return render_template('albums.html', logged_in=logged_in, display_name=display_name, profile_url=profile_url)
 
 if __name__ == "__main__":
     app.run(debug=True, port=3000)
