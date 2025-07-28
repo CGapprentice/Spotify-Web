@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<!--Show songs on click-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rank Songs | DiscogMe</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <button class="back-button" onclick="goBack()">← Back to Albums</button>
+        
+        <div id="album-content">
+            <div class="loading">Loading album songs...</div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='src/pages/songs.js') }}"></script>
+</body>
+</html>

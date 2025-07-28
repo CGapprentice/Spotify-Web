@@ -1,16 +1,23 @@
-// Global variables for pagination
 let allAlbums = [];
 let currentPage = 1;
-const albumsPerPage = 20;
+const albumsPerPage = 30;
+
+// Fetch albums when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    fetchSavedAlbums();
+});
 
 function fetchSavedAlbums() {
-    // Show loading indicator
     document.getElementById('albums-container').innerHTML = '<p>Loading your albums...</p>';
     
-    // Fetch saved albums from your backend
+    // Fetch saved albums from backend
     fetch('/saved-albums')
         .then(response => {
             if (!response.ok) {
+                if (response.status === 401) {
+                    window.location.href = '/login';
+                    throw new Error('Please log in to view your albums');
+                }
                 throw new Error('Network response was not ok');
             }
             return response.json();
@@ -20,7 +27,7 @@ function fetchSavedAlbums() {
                 throw new Error(data.error.message || 'Error fetching albums');
             }
             // Store all albums globally
-            allAlbums = data.items;
+            allAlbums = data.items || [];
             // Reset to first page
             currentPage = 1;
             // Display albums with pagination
@@ -36,10 +43,14 @@ function fetchSavedAlbums() {
 function displayAlbumPage(page) {
     const container = document.getElementById('albums-container');
     
-    // Clear container
     container.innerHTML = '';
     
-    // Calculate start and end indices for current page
+    // Check if we have albums to display
+    if (!allAlbums || allAlbums.length === 0) {
+        container.innerHTML = '<p>No saved albums found in your library.</p>';
+        return;
+    }
+    
     const startIndex = (page - 1) * albumsPerPage;
     const endIndex = Math.min(startIndex + albumsPerPage, allAlbums.length);
     const currentAlbums = allAlbums.slice(startIndex, endIndex);
@@ -62,17 +73,14 @@ function displayAlbumPage(page) {
         const albumElement = document.createElement('div');
         albumElement.className = 'album-card';
         
-        // Get album cover (use first image or a placeholder)
         const imageUrl = album.images && album.images.length > 0 
             ? album.images[0].url 
             : 'placeholder.jpg';
             
-        // Get artist names
         const artistNames = album.artists
             .map(artist => artist.name)
             .join(', ');
         
-        // Get release date
         const releaseDate = album.release_date || 'Unknown date';
             
         albumElement.innerHTML = `
@@ -84,24 +92,21 @@ function displayAlbumPage(page) {
             </div>
         `;
         
-        // Add click handler to open album in Spotify
-        if (album.external_urls && album.external_urls.spotify) {
-            albumElement.addEventListener('click', () => {
-                window.open(album.external_urls.spotify, '_blank');
-            });
-            albumElement.style.cursor = 'pointer';
-        }
-        
+        // Add click handler to open album and list songs
+        albumElement.addEventListener('click', () => {
+            sessionStorage.setItem('selectedAlbum', JSON.stringify(album));
+            window.location.href = '/album-songs';
+        });
+        albumElement.style.cursor = 'pointer';
         albumGrid.appendChild(albumElement);
+    
     });
     
     container.appendChild(albumGrid);
     
-    // Add pagination controls
     const paginationElement = document.createElement('div');
     paginationElement.className = 'pagination';
     
-    // Calculate total pages
     const totalPages = Math.ceil(allAlbums.length / albumsPerPage);
     
     // Previous button
@@ -112,7 +117,6 @@ function displayAlbumPage(page) {
         if (currentPage > 1) {
             currentPage--;
             displayAlbumPage(currentPage);
-            // Scroll to top of container
             container.scrollIntoView({ behavior: 'smooth' });
         }
     });
@@ -125,7 +129,6 @@ function displayAlbumPage(page) {
         if (currentPage < totalPages) {
             currentPage++;
             displayAlbumPage(currentPage);
-            // Scroll to top of container
             container.scrollIntoView({ behavior: 'smooth' });
         }
     });

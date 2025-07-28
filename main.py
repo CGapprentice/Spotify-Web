@@ -146,7 +146,33 @@ def saved_albums():
     access_token = session['access_token']
     saved_albums = get_saved_albums(access_token)  # Call the helper function
     return jsonify(saved_albums)
+
+@app.route('/album-tracks/<album_id>')
+def get_album_tracks(album_id):
+    if 'access_token' not in session:
+        return jsonify({"error": {"message": "No access token available"}}), 401
     
+    if datetime.now().timestamp() > session['expires_at']:
+        return jsonify({"error": {"message": "Access token expired"}}), 401
+    
+    headers = {
+        'Authorization': f"Bearer {session['access_token']}"
+    }
+    
+    try:
+        response = requests.get(f"{API_BASE_URL}albums/{album_id}/tracks?market=US&limit=50", headers=headers)
+        
+        if response.status_code == 401:
+            return jsonify({"error": {"message": "Access token expired"}}), 401
+        elif response.status_code != 200:
+            return jsonify({"error": {"message": f"Spotify API error: {response.status_code}"}}), 500
+        
+        tracks_data = response.json()
+        return jsonify(tracks_data)
+        
+    except Exception as e:
+        print(f"Error fetching album tracks: {e}")
+        return jsonify({"error": {"message": "Failed to fetch album tracks"}}), 500
 
 @app.route('/albums')
 def albums_page():
@@ -160,6 +186,21 @@ def albums_page():
     profile_url = session.get('profile_url', None)
     
     return render_template('albums.html', logged_in=logged_in, display_name=display_name, profile_url=profile_url)
+
+@app.route('/album-songs')
+def album_songs_page():
+    logged_in = 'access_token' in session and datetime.now().timestamp() < session['expires_at']
+    
+    # If not logged in, redirect to login
+    if not logged_in:
+        return redirect('/login')
+    
+    display_name = session.get('display_name', None)
+    profile_url = session.get('profile_url', None)
+    
+    return render_template('album_songs.html', logged_in=logged_in, display_name=display_name, profile_url=profile_url)
+
+
 
 if __name__ == "__main__":
     app.run(debug=True, port=3000)
