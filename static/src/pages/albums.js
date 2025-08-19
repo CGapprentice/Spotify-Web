@@ -11,7 +11,7 @@ function fetchSavedAlbums() {
     document.getElementById('albums-container').innerHTML = '<p>Loading your albums...</p>';
     
     // Fetch saved albums from backend
-    fetch('/saved-albums')
+    fetch('/api/saved-albums')
         .then(response => {
             if (!response.ok) {
                 if (response.status === 401) {

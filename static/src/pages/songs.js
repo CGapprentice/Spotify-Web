@@ -26,7 +26,7 @@ function loadAlbumData() {
 }
 
 function fetchAlbumTracks() {
-    fetch(`/album-tracks/${currentAlbum.id}`)
+    fetch(`/api/album-tracks/${currentAlbum.id}`)
         .then(response => {
             if (!response.ok) {
                 if (response.status === 401) {
