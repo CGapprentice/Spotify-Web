@@ -6,12 +6,11 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function loadAlbumData() {
-    // album data from sessionStorage
     const albumData = sessionStorage.getItem('selectedAlbum');
     
     if (!albumData) {
         document.getElementById('album-content').innerHTML = 
-            '<div class="error">No album data found. Please go back and select an album.</div>';
+            '<div class="text-center py-16 text-red-400">No album data found. Please go back and select an album.</div>';
         return;
     }
 
@@ -45,7 +44,7 @@ function fetchAlbumTracks() {
         })
         .catch(error => {
             document.getElementById('album-content').innerHTML = 
-                `<div class="error">Error loading tracks: ${error.message}</div>`;
+                `<div class="text-center py-16 text-red-400">Error loading tracks: ${error.message}</div>`;
             console.error('Error fetching tracks:', error);
         });
 }
@@ -53,7 +52,6 @@ function fetchAlbumTracks() {
 function displayAlbumWithTracks(tracks) {
     const container = document.getElementById('album-content');
     
-    // Get album info
     const imageUrl = currentAlbum.images && currentAlbum.images.length > 0 
         ? currentAlbum.images[0].url 
         : 'placeholder.jpg';
@@ -63,22 +61,31 @@ function displayAlbumWithTracks(tracks) {
         .join(', ');
 
     container.innerHTML = `
-        <div class="album-header">
-            <img src="${imageUrl}" alt="${currentAlbum.name}" class="album-cover">
-            <div class="album-details">
-                <h1>${currentAlbum.name}</h1>
-                <p><strong>Artist:</strong> ${artistNames}</p>
-                <p><strong>Release Date:</strong> ${currentAlbum.release_date || 'Unknown'}</p>
-                <p><strong>Total Tracks:</strong> ${tracks.length}</p>
+        <!-- Album Header -->
+        <div class="flex flex-col md:flex-row gap-6 mb-8 p-6 bg-spotify-card rounded-lg">
+            <img src="${imageUrl}" alt="${currentAlbum.name}" class="w-48 h-48 rounded-lg object-cover shadow-lg mx-auto md:mx-0">
+            <div class="flex flex-col justify-center text-center md:text-left">
+                <h1 class="text-3xl md:text-4xl font-bold text-spotify-text mb-4">${currentAlbum.name}</h1>
+                <p class="text-lg text-spotify-text-secondary mb-2">
+                    <span class="font-semibold">Artist:</span> ${artistNames}
+                </p>
+                <p class="text-lg text-spotify-text-secondary mb-2">
+                    <span class="font-semibold">Release Date:</span> ${currentAlbum.release_date || 'Unknown'}
+                </p>
+                <p class="text-lg text-spotify-text-secondary">
+                    <span class="font-semibold">Total Tracks:</span> ${tracks.length}
+                </p>
             </div>
         </div>
         
-        <div class="songs-container" id="songs-container">
+        <!-- Songs Container -->
+        <div class="space-y-2 mb-8" id="songs-container">
             <!-- Songs will be populated here -->
         </div>
         
-        <div class="stats" id="stats">
-            <h3>Average Rating</h3>
+        <!-- Stats Card -->
+        <div class="stats-card" id="stats">
+            <h3 class="stats-title">Average Rating</h3>
             <div class="average-rating" id="average-rating">-</div>
         </div>
     `;
@@ -89,18 +96,15 @@ function displayAlbumWithTracks(tracks) {
         const songElement = document.createElement('div');
         songElement.className = 'song-item';
         
-        // Convert duration from milliseconds to mm:ss
         const duration = formatDuration(track.duration_ms);
-        
-        // Get artist names for this track
         const trackArtists = track.artists
             .map(artist => artist.name)
             .join(', ');
 
         songElement.innerHTML = `
-            <div class="song-info">
-                <div class="song-name">${track.name}</div>
-                <div class="song-artists">${trackArtists}</div>
+            <div class="flex-1 min-w-0">
+                <div class="song-name truncate">${track.name}</div>
+                <div class="song-artist truncate">${trackArtists}</div>
             </div>
             <div class="song-duration">${duration}</div>
             <div class="rating-container" data-track-id="${track.id}">
@@ -119,7 +123,7 @@ function generateRatingButtons(trackId) {
     for (let i = 1; i <= 10; i++) {
         const isSelected = songRatings[trackId] === i ? 'selected' : '';
         buttonsHtml += `
-            <button class="rating-button ${isSelected}" 
+            <button class="rating-btn ${isSelected}" 
                     onclick="rateSong('${trackId}', ${i})" 
                     data-rating="${i}">
                 ${i}
@@ -130,15 +134,11 @@ function generateRatingButtons(trackId) {
 }
 
 function rateSong(trackId, rating) {
-    // Update the rating
     songRatings[trackId] = rating;
-    
-    // Save to localStorage
     localStorage.setItem(`ratings_${currentAlbum.id}`, JSON.stringify(songRatings));
     
-    // Update button states for this track
     const ratingContainer = document.querySelector(`[data-track-id="${trackId}"]`);
-    const buttons = ratingContainer.querySelectorAll('.rating-button');
+    const buttons = ratingContainer.querySelectorAll('.rating-btn');
     
     buttons.forEach(button => {
         button.classList.remove('selected');
@@ -170,5 +170,5 @@ function formatDuration(ms) {
 }
 
 function goBack() {
-    window.location.href = '/albums'
+    window.location.href = '/albums';
 }

@@ -1,20 +1,53 @@
 <!DOCTYPE html>
-<!--Show songs on click-->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Rank Songs | DiscogMe</title>
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='songs.css') }}">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        'spotify-green': '#1DB954',
+                        'spotify-green-hover': '#1ed760',
+                        'spotify-black': '#000000',
+                        'spotify-dark': '#121212',
+                        'spotify-card': '#181818',
+                        'spotify-hover': '#282828',
+                        'spotify-text': '#ffffff',
+                        'spotify-text-secondary': '#b3b3b3',
+                        'spotify-border': '#2a2a2a'
+                    },
+                    fontFamily: {
+                        'inter': ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
 </head>
-<body>
-    <div class="container">
-        <button class="back-button" onclick="goBack()">← Back to Albums</button>
+<body class="bg-spotify-dark text-spotify-text font-inter min-h-screen">
+    <div class="container mx-auto px-6 py-8 max-w-4xl">
+        <!-- Back Button -->
+        <button 
+            class="spotify-btn mb-8 flex items-center gap-2"
+            onclick="goBack()"
+        >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+            </svg>
+            Back to Albums
+        </button>
         
-        <div id="album-content">
-            <div class="loading">Loading album songs...</div>
+        <!-- Album Content -->
+        <div id="album-content" class="min-h-[400px]">
+            <div class="loading">
+                Loading album songs...
+            </div>
         </div>
     </div>
 
