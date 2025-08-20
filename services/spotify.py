@@ -70,3 +70,42 @@ class SpotifyService:
             return {"error": response.json()}
         
         return response.json()
+    
+    @staticmethod
+    def play_track(access_token, track_uri, device_id=None):
+        url = f"{Config.API_BASE_URL}me/player/play"
+        headers = SpotifyService.get_auth_header(access_token)
+        headers['Content-Type'] = 'application/json'
+        
+        params = {}
+        if device_id:
+            params['device_id'] = device_id
+        
+        data = {"uris": [track_uri]}
+        
+        response = requests.put(url, headers=headers, json=data, params=params)
+        
+        if response.status_code not in [200, 204]:
+            error_detail = response.json() if response.content else "Playback failed"
+            return {"error": error_detail}
+        
+        return {"success": True}
+    
+    @staticmethod
+    def transfer_playback(access_token, device_id):
+        url = f"{Config.API_BASE_URL}me/player"
+        headers = SpotifyService.get_auth_header(access_token)
+        headers['Content-Type'] = 'application/json'
+        
+        data = {
+            "device_ids": [device_id],
+            "play": False
+        }
+        
+        response = requests.put(url, headers=headers, json=data)
+        
+        if response.status_code not in [200, 204]:
+            error_detail = response.json() if response.content else "Transfer failed"
+            return {"error": error_detail}
+        
+        return {"success": True}
