@@ -184,16 +184,16 @@ function displayAlbumWithTracks(tracks) {
             .join(', ');
 
         songElement.innerHTML = `
-            <div class="flex-1 min-w-0">
-                <div class="song-name truncate">${track.name}</div>
-                <div class="song-artist truncate">${trackArtists}</div>
+            <div class="song-info">
+                <div class="song-name">${track.name}</div>
+                <div class="song-artist">${trackArtists}</div>
             </div>
+            <div class="song-duration">${duration}</div>
             <button class="play-btn" onclick="togglePlay('${track.uri}', '${track.preview_url || ''}')" data-track-uri="${track.uri}" data-preview-url="${track.preview_url || ''}">
                 <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M8 5v14l11-7z"/>
                 </svg>
             </button>
-            <div class="song-duration">${duration}</div>
             <div class="rating-container" data-track-id="${track.id}">
                 ${generateRatingButtons(track.id)}
             </div>
@@ -261,12 +261,17 @@ function goBack() {
 }
 
 function togglePlay(trackUri, previewUrl) {
-    if (audioElement && !audioElement.paused) {
+    if (audioElement && !audioElement.paused && currentlyPlaying === trackUri) {
         audioElement.pause();
         audioElement = null;
         currentlyPlaying = null;
         updatePlayButtons(null);
         return;
+    }
+
+    if (audioElement && !audioElement.paused) {
+        audioElement.pause();
+        audioElement = null;
     }
 
     if (!player || !deviceId) {

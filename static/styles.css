@@ -242,21 +242,35 @@ body {
   border-color: var(--spotify-border);
 }
 
+.song-info {
+  flex: 1;
+  min-width: 0;
+}
+
 .song-name {
   color: var(--spotify-text);
   font-weight: 500;
   font-size: 16px;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .song-artist {
   color: var(--spotify-text-secondary);
   font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .song-duration {
   color: var(--spotify-text-secondary);
   font-size: 14px;
-  margin-left: auto;
+  width: 60px;
+  text-align: center;
+  flex-shrink: 0;
 }
 
 /* Play Button */
@@ -273,6 +287,8 @@ body {
   align-items: center;
   justify-content: center;
   opacity: 0.7;
+  flex-shrink: 0;
+  margin-right: 8px;
 }
 
 .play-btn:hover {
@@ -284,6 +300,7 @@ body {
 .play-btn.playing {
   background: var(--spotify-text);
   color: var(--spotify-green);
+  opacity: 1;
 }
 
 .play-btn.loading {
