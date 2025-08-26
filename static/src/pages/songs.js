@@ -1,5 +1,5 @@
 let currentAlbum = null;
-let songRatings = {};
+let albumSession = null;
 let player = null;
 let deviceId = null;
 let currentlyPlaying = null;
@@ -23,12 +23,6 @@ function loadAlbumData() {
     }
 
     currentAlbum = JSON.parse(albumData);
-    
-    const savedRatings = localStorage.getItem(`ratings_${currentAlbum.id}`);
-    if (savedRatings) {
-        songRatings = JSON.parse(savedRatings);
-    }
-
     fetchAlbumTracks();
 }
 
@@ -122,6 +116,8 @@ function fetchAlbumTracks() {
             if (data.error) {
                 throw new Error(data.error.message || 'Error fetching tracks');
             }
+            
+            albumSession = data.session_info;
             displayAlbumWithTracks(data.items || []);
         })
         .catch(error => {
@@ -154,9 +150,15 @@ function displayAlbumWithTracks(tracks) {
                 <p class="text-lg text-spotify-text-secondary mb-2">
                     <span class="font-semibold">Release Date:</span> ${currentAlbum.release_date || 'Unknown'}
                 </p>
-                <p class="text-lg text-spotify-text-secondary">
+                <p class="text-lg text-spotify-text-secondary mb-2">
                     <span class="font-semibold">Total Tracks:</span> ${tracks.length}
                 </p>
+                <div class="mt-4 p-3 bg-gray-800 rounded-lg">
+                    <p class="text-sm text-gray-400">Progress: ${albumSession.rated_tracks || 0}/${albumSession.total_tracks || tracks.length} rated</p>
+                    <div class="w-full bg-gray-700 rounded-full h-2 mt-2">
+                        <div class="bg-spotify-green h-2 rounded-full transition-all duration-300" style="width: ${albumSession.completion_percentage || 0}%"></div>
+                    </div>
+                </div>
             </div>
         </div>
         
@@ -168,7 +170,7 @@ function displayAlbumWithTracks(tracks) {
         <!-- Stats Card -->
         <div class="stats-card" id="stats">
             <h3 class="stats-title">Average Rating</h3>
-            <div class="average-rating" id="average-rating">-</div>
+            <div class="average-rating" id="average-rating">${albumSession.average_rating || '-'}</div>
         </div>
     `;
 
@@ -195,7 +197,7 @@ function displayAlbumWithTracks(tracks) {
                 </svg>
             </button>
             <div class="rating-container" data-track-id="${track.id}">
-                ${generateRatingButtons(track.id)}
+                ${generateRatingButtons(track.id, track.user_rating)}
             </div>
         `;
 
@@ -205,10 +207,10 @@ function displayAlbumWithTracks(tracks) {
     updateStats();
 }
 
-function generateRatingButtons(trackId) {
+function generateRatingButtons(trackId, currentRating) {
     let buttonsHtml = '';
     for (let i = 1; i <= 10; i++) {
-        const isSelected = songRatings[trackId] === i ? 'selected' : '';
+        const isSelected = currentRating === i ? 'selected' : '';
         buttonsHtml += `
             <button class="rating-btn ${isSelected}" 
                     onclick="rateSong('${trackId}', ${i})" 
@@ -221,33 +223,73 @@ function generateRatingButtons(trackId) {
 }
 
 function rateSong(trackId, rating) {
-    songRatings[trackId] = rating;
-    localStorage.setItem(`ratings_${currentAlbum.id}`, JSON.stringify(songRatings));
-    
-    const ratingContainer = document.querySelector(`[data-track-id="${trackId}"]`);
-    const buttons = ratingContainer.querySelectorAll('.rating-btn');
-    
-    buttons.forEach(button => {
-        button.classList.remove('selected');
-        if (parseInt(button.dataset.rating) === rating) {
-            button.classList.add('selected');
+    fetch('/api/rate-track', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            track_id: trackId,
+            album_id: currentAlbum.id,
+            rating: rating
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Update button states
+            const ratingContainer = document.querySelector(`[data-track-id="${trackId}"]`);
+            const buttons = ratingContainer.querySelectorAll('.rating-btn');
+            
+            buttons.forEach(button => {
+                button.classList.remove('selected');
+                if (parseInt(button.dataset.rating) === rating) {
+                    button.classList.add('selected');
+                }
+            });
+            
+            // Update session info
+            albumSession = data.session;
+            updateStats();
+            updateProgress();
+        } else {
+            console.error('Rating failed:', data.error);
+            alert('Failed to save rating. Please try again.');
         }
+    })
+    .catch(error => {
+        console.error('Rating request failed:', error);
+        alert('Failed to save rating. Please check your connection.');
     });
-
-    updateStats();
 }
 
 function updateStats() {
-    const ratings = Object.values(songRatings);
     const averageElement = document.getElementById('average-rating');
-    
-    if (ratings.length === 0) {
+    if (albumSession && albumSession.average_rating) {
+        // Ensure we display at most 2 decimal places
+        const formattedRating = typeof albumSession.average_rating === 'number' 
+            ? albumSession.average_rating.toFixed(2)
+            : parseFloat(albumSession.average_rating).toFixed(2);
+        averageElement.textContent = formattedRating;
+    } else {
         averageElement.textContent = '-';
-        return;
     }
+}
 
-    const average = ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length;
-    averageElement.textContent = average.toFixed(1);
+function updateProgress() {
+    if (!albumSession) return;
+    
+    // Update progress text and bar
+    const progressText = document.querySelector('.text-gray-400');
+    const progressBar = document.querySelector('.bg-spotify-green');
+    
+    if (progressText) {
+        progressText.textContent = `Progress: ${albumSession.rated_tracks || 0}/${albumSession.total_tracks || 0} rated`;
+    }
+    
+    if (progressBar) {
+        progressBar.style.width = `${albumSession.completion_percentage || 0}%`;
+    }
 }
 
 function formatDuration(ms) {

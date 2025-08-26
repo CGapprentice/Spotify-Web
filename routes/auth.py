@@ -1,9 +1,11 @@
 from flask import Blueprint, request, session, redirect, jsonify
-from datetime import datetime
+from datetime import datetime, timedelta
 import requests
 import urllib.parse
 from config import Config
 from services.spotify import SpotifyService
+from models.user import User
+from models import db
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -42,35 +44,74 @@ def callback():
         return jsonify({"error": "Failed to get access token"})
     
     token_info = response.json()
+    access_token = token_info['access_token']
+    refresh_token = token_info['refresh_token']
+    expires_in = token_info['expires_in']
+    expires_at = datetime.utcnow() + timedelta(seconds=expires_in)
     
-    session['access_token'] = token_info['access_token']
-    session['refresh_token'] = token_info['refresh_token']
-    session['expires_at'] = datetime.now().timestamp() + token_info['expires_in']
-    
-    profile_info = SpotifyService.get_user_profile(session['access_token'])
+    # Get user profile from Spotify
+    profile_info = SpotifyService.get_user_profile(access_token)
     
     if 'error' in profile_info:
         return jsonify({"error": "Failed to get user profile"})
     
-    session['display_name'] = profile_info['display_name']
-    session['profile_url'] = profile_info['external_urls']['spotify']
+    # Create or update user in database
+    user = User.find_by_spotify_id(profile_info['id'])
+    
+    if user:
+        # Update existing user
+        user.display_name = profile_info['display_name']
+        user.email = profile_info.get('email')
+        user.profile_url = profile_info['external_urls']['spotify']
+        user.update_tokens(access_token, refresh_token, expires_at)
+    else:
+        # Create new user
+        user = User(
+            spotify_id=profile_info['id'],
+            display_name=profile_info['display_name'],
+            email=profile_info.get('email'),
+            profile_url=profile_info['external_urls']['spotify'],
+            access_token=access_token,
+            refresh_token=refresh_token,
+            token_expires_at=expires_at
+        )
+        db.session.add(user)
+        db.session.commit()
+    
+    # Store user ID in session
+    session['user_id'] = user.id
+    session['spotify_id'] = user.spotify_id
+    session['display_name'] = user.display_name
+    session['profile_url'] = user.profile_url
     
     return redirect('/')
 
 @auth_bp.route('/refresh-token')
 def refresh_token():
-    if 'refresh_token' not in session:
+    if 'user_id' not in session:
         return redirect('/login')
     
-    if datetime.now().timestamp() <= session.get('expires_at', 0):
+    user = User.query.get(session['user_id'])
+    
+    if not user or not user.refresh_token:
+        return redirect('/login')
+    
+    # Check if token is still valid
+    if user.token_expires_at and datetime.utcnow() < user.token_expires_at:
         return redirect('/')
     
-    token_info = SpotifyService.refresh_access_token(session['refresh_token'])
+    token_info = SpotifyService.refresh_access_token(user.refresh_token)
     
     if 'error' in token_info:
         return redirect('/login')
     
-    session['access_token'] = token_info['access_token']
-    session['expires_at'] = datetime.now().timestamp() + token_info['expires_in']
+    # Update user tokens
+    expires_at = datetime.utcnow() + timedelta(seconds=token_info['expires_in'])
+    user.update_tokens(token_info['access_token'], expires_at=expires_at)
     
+    return redirect('/')
+
+@auth_bp.route('/logout')
+def logout():
+    session.clear()
     return redirect('/')
