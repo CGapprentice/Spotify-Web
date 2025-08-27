@@ -32,6 +32,40 @@
     </script>
 </head>
 <body class="bg-spotify-dark text-spotify-text font-inter min-h-screen">
+    <!-- Navigation -->
+    <nav class="navbar flex items-center justify-between mb-8">
+        <a href="/" class="navbar-brand text-2xl font-bold text-spotify-text hover:text-spotify-green transition-colors">
+            DiscogMe
+        </a>
+        
+        <!-- Search Bar -->
+        <div class="flex-1 flex justify-center">
+            <form action="/search" method="GET" class="w-full max-w-md">
+                <input 
+                    type="search" 
+                    name="q"
+                    placeholder="Search for artists..." 
+                    class="search-input w-full"
+                    aria-label="Search"
+                >
+            </form>
+        </div>
+        
+        <!-- Navigation Links -->
+        <div class="flex items-center space-x-6">
+            <a href="/albums" class="text-spotify-text-secondary hover:text-spotify-text transition-colors">Your Albums</a>
+            {% if logged_in %}
+                <a 
+                    href="{{ profile_url }}" 
+                    target="_blank"
+                    class="text-spotify-text hover:text-spotify-green transition-colors font-medium"
+                >
+                    Hello, {{ display_name }}
+                </a>
+            {% endif %}
+        </div>
+    </nav>
+
     <div class="container mx-auto px-6 py-8 max-w-4xl">
         <!-- Back Button -->
         <button 
@@ -53,5 +87,6 @@
     </div>
 
     <script src="{{ url_for('static', filename='src/pages/songs.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/global-search.js') }}"></script>
 </body>
 </html>

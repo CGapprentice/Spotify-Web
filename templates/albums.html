@@ -39,16 +39,20 @@
         
         <!-- Search Bar -->
         <div class="flex-1 flex justify-center">
-            <input 
-                type="search" 
-                placeholder="Search your albums..." 
-                class="search-input"
-                aria-label="Search"
-            >
+            <form action="/search" method="GET" class="w-full max-w-md">
+                <input 
+                    type="search" 
+                    name="q"
+                    placeholder="Search for artists..." 
+                    class="search-input w-full"
+                    aria-label="Search"
+                >
+            </form>
         </div>
         
         <!-- User Section -->
-        <div class="flex items-center">
+        <div class="flex items-center space-x-6">
+            <a href="/search" class="text-spotify-text-secondary hover:text-spotify-text transition-colors">Search</a>
             {% if logged_in %}
                 <a 
                     href="{{ profile_url }}" 
@@ -56,13 +60,6 @@
                     class="text-spotify-text hover:text-spotify-green transition-colors font-medium"
                 >
                     Hello, {{ display_name }}
-                </a>
-            {% else %}
-                <a 
-                    href="/login" 
-                    class="bg-spotify-green hover:bg-spotify-green-hover text-white font-semibold py-2 px-6 rounded-full transition-all duration-200 hover:scale-105"
-                >
-                    Login
                 </a>
             {% endif %}
         </div>
@@ -75,9 +72,6 @@
             <h1 class="text-4xl md:text-5xl font-bold text-spotify-text mb-4">
                 Your Saved Albums
             </h1>
-            <p class="text-lg text-spotify-text-secondary">
-                Rate and organize your music collection
-            </p>
         </div>
         
         <!-- Albums -->
@@ -89,6 +83,7 @@
     </div>
 
     <script src="{{ url_for('static', filename='src/pages/albums.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/global-search.js') }}"></script>
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
 </body>
 </html>

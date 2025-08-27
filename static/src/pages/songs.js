@@ -130,33 +130,46 @@ function fetchAlbumTracks() {
 function displayAlbumWithTracks(tracks) {
     const container = document.getElementById('album-content');
     
+    // Get album image - prefer higher quality image
     const imageUrl = currentAlbum.images && currentAlbum.images.length > 0 
         ? currentAlbum.images[0].url 
-        : 'placeholder.jpg';
+        : (currentAlbum.image || 'https://via.placeholder.com/300x300/282828/b3b3b3?text=♪');
     
-    const artistNames = currentAlbum.artists
-        .map(artist => artist.name)
-        .join(', ');
+    // Safely get artist names with multiple fallbacks
+    let artistNames = 'Unknown Artist';
+    if (currentAlbum.artists && Array.isArray(currentAlbum.artists)) {
+        artistNames = currentAlbum.artists.map(artist => artist.name).join(', ');
+    } else if (currentAlbum.artist) {
+        artistNames = currentAlbum.artist;
+    } else if (tracks.length > 0 && tracks[0].artists) {
+        // Fallback: get artist from first track
+        artistNames = tracks[0].artists.map(artist => artist.name).join(', ');
+    }
 
     container.innerHTML = `
         <!-- Album Header -->
-        <div class="flex flex-col md:flex-row gap-6 mb-8 p-6 bg-spotify-card rounded-lg">
-            <img src="${imageUrl}" alt="${currentAlbum.name}" class="w-48 h-48 rounded-lg object-cover shadow-lg mx-auto md:mx-0">
-            <div class="flex flex-col justify-center text-center md:text-left">
-                <h1 class="text-3xl md:text-4xl font-bold text-spotify-text mb-4">${currentAlbum.name}</h1>
-                <p class="text-lg text-spotify-text-secondary mb-2">
-                    <span class="font-semibold">Artist:</span> ${artistNames}
-                </p>
-                <p class="text-lg text-spotify-text-secondary mb-2">
-                    <span class="font-semibold">Release Date:</span> ${currentAlbum.release_date || 'Unknown'}
-                </p>
-                <p class="text-lg text-spotify-text-secondary mb-2">
-                    <span class="font-semibold">Total Tracks:</span> ${tracks.length}
-                </p>
-                <div class="mt-4 p-3 bg-gray-800 rounded-lg">
-                    <p class="text-sm text-gray-400">Progress: ${albumSession.rated_tracks || 0}/${albumSession.total_tracks || tracks.length} rated</p>
-                    <div class="w-full bg-gray-700 rounded-full h-2 mt-2">
-                        <div class="bg-spotify-green h-2 rounded-full transition-all duration-300" style="width: ${albumSession.completion_percentage || 0}%"></div>
+        <div class="flex flex-col lg:flex-row gap-8 mb-8 p-8 bg-spotify-card rounded-xl">
+            <div class="flex-shrink-0 mx-auto lg:mx-0">
+                <img src="${imageUrl}" alt="${currentAlbum.name}" class="w-64 h-64 rounded-xl object-cover shadow-2xl">
+            </div>
+            <div class="flex flex-col justify-center text-center lg:text-left">
+                <h1 class="text-4xl lg:text-5xl font-bold text-spotify-text mb-6">${currentAlbum.name}</h1>
+                <div class="space-y-3 mb-6">
+                    <p class="text-xl text-spotify-text-secondary">
+                        <span class="font-semibold text-spotify-text">Artist:</span> ${artistNames}
+                    </p>
+                    <p class="text-lg text-spotify-text-secondary">
+                        <span class="font-semibold text-spotify-text">Release:</span> ${currentAlbum.release_date || 'Unknown'}
+                    </p>
+                    <p class="text-lg text-spotify-text-secondary">
+                        <span class="font-semibold text-spotify-text">Tracks:</span> ${tracks.length}
+                    </p>
+                </div>
+                <div class="bg-spotify-hover p-4 rounded-lg">
+                    <p class="text-sm text-spotify-text-secondary mb-2">Rating Progress</p>
+                    <p class="text-lg font-semibold text-spotify-text mb-3">${albumSession?.rated_tracks || 0}/${albumSession?.total_tracks || tracks.length} tracks rated</p>
+                    <div class="w-full bg-spotify-border rounded-full h-3">
+                        <div class="bg-gradient-to-r from-spotify-green to-spotify-green-hover h-3 rounded-full transition-all duration-500" style="width: ${albumSession?.completion_percentage || 0}%"></div>
                     </div>
                 </div>
             </div>
@@ -170,7 +183,7 @@ function displayAlbumWithTracks(tracks) {
         <!-- Stats Card -->
         <div class="stats-card" id="stats">
             <h3 class="stats-title">Average Rating</h3>
-            <div class="average-rating" id="average-rating">${albumSession.average_rating || '-'}</div>
+            <div class="average-rating" id="average-rating">${albumSession?.average_rating || '-'}</div>
         </div>
     `;
 
@@ -181,9 +194,9 @@ function displayAlbumWithTracks(tracks) {
         songElement.className = 'song-item';
         
         const duration = formatDuration(track.duration_ms);
-        const trackArtists = track.artists
-            .map(artist => artist.name)
-            .join(', ');
+        const trackArtists = track.artists && Array.isArray(track.artists)
+            ? track.artists.map(artist => artist.name).join(', ')
+            : artistNames; // Fallback to album artist
 
         songElement.innerHTML = `
             <div class="song-info">

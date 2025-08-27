@@ -131,3 +131,115 @@ def user_stats():
         'rating_stats': rating_stats,
         'session_stats': session_stats
     })
+
+@api_bp.route('/search')
+@require_auth
+def search():
+    query = request.args.get('q', '')
+    limit = int(request.args.get('limit', '20'))
+    
+    if not query:
+        return jsonify({'artists': []})
+    
+    access_token = get_user_access_token()
+    
+    # Enhanced search with better exact matching
+    artists = []
+    
+    # For short queries (like "Cher", "Res"), try exact match first
+    if len(query.strip()) <= 4 or not query.strip().endswith('*'):
+        exact_query = f'artist:"{query}"'
+        exact_results = SpotifyService.search(access_token, exact_query, 'artist', limit, 0)
+        
+        if not exact_results.get('error') and exact_results.get('artists', {}).get('items'):
+            artists.extend(exact_results['artists']['items'])
+    
+    # If we don't have enough results, try regular fuzzy search
+    if len(artists) < limit:
+        remaining_limit = limit - len(artists)
+        fuzzy_results = SpotifyService.search(access_token, query, 'artist', remaining_limit, 0)
+        
+        if not fuzzy_results.get('error') and fuzzy_results.get('artists', {}).get('items'):
+            # Avoid duplicates by checking IDs
+            existing_ids = {artist['id'] for artist in artists}
+            for artist in fuzzy_results['artists']['items']:
+                if artist['id'] not in existing_ids and len(artists) < limit:
+                    artists.append(artist)
+    
+    # If still no results, try one more search without field qualifier
+    if not artists:
+        fallback_results = SpotifyService.search(access_token, query, 'artist', limit, 0)
+        if not fallback_results.get('error'):
+            artists = fallback_results.get('artists', {}).get('items', [])
+    
+    simplified_artists = []
+    for artist in artists[:limit]:  # Ensure we don't exceed limit
+        artist_data = {
+            'id': artist['id'],
+            'name': artist['name'],
+            'images': artist['images'],
+            'popularity': artist['popularity'],
+            'followers': artist['followers']['total'],
+            'genres': artist['genres'],
+            'external_urls': artist['external_urls']
+        }
+        simplified_artists.append(artist_data)
+    
+    # Sort results to prioritize exact matches and popular artists
+    def sort_key(artist):
+        name_lower = artist['name'].lower()
+        query_lower = query.lower().strip()
+        
+        if name_lower == query_lower:
+            return (0, -artist['popularity'])
+        
+        # Starts with query gets second priority
+        if name_lower.startswith(query_lower):
+            return (1, -artist['popularity'])
+        
+        # Contains query gets third priority
+        if query_lower in name_lower:
+            return (2, -artist['popularity'])
+        
+        # Everything else sorted by popularity
+        return (3, -artist['popularity'])
+    
+    simplified_artists.sort(key=sort_key)
+    
+    return jsonify({
+        'artists': simplified_artists,
+        'total': len(simplified_artists)
+    })
+
+@api_bp.route('/artist/<artist_id>/albums')
+@require_auth
+def get_artist_albums_api(artist_id):
+    access_token = get_user_access_token()
+    albums_data = SpotifyService.get_artist_albums(access_token, artist_id)
+    
+    if 'error' in albums_data:
+        return jsonify(albums_data), 500
+    
+    return jsonify(albums_data)
+
+@api_bp.route('/album/<album_id>')
+@require_auth
+def get_album_details(album_id):
+    access_token = get_user_access_token()
+    album_details = SpotifyService.get_album_details(access_token, album_id)
+    
+    if 'error' in album_details:
+        return jsonify(album_details), 500
+    
+    return jsonify(album_details)
+
+@api_bp.route('/artist/<artist_id>/info')
+@require_auth
+def get_artist_info(artist_id):
+    access_token = get_user_access_token()
+    artist_info = SpotifyService.get_artist_info(access_token, artist_id)
+    
+    if 'error' in artist_info:
+        return jsonify(artist_info), 500
+    
+    return jsonify(artist_info)

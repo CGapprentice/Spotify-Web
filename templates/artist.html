@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Artist | DiscogMe</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        'spotify-green': '#1DB954',
+                        'spotify-green-hover': '#1ed760',
+                        'spotify-black': '#000000',
+                        'spotify-dark': '#121212',
+                        'spotify-card': '#181818',
+                        'spotify-hover': '#282828',
+                        'spotify-text': '#ffffff',
+                        'spotify-text-secondary': '#b3b3b3',
+                        'spotify-border': '#2a2a2a'
+                    },
+                    fontFamily: {
+                        'inter': ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-spotify-dark text-spotify-text font-inter min-h-screen">
+    <!-- Navigation -->
+    <nav class="navbar flex items-center justify-between px-6 py-4 bg-spotify-black">
+        <a href="/" class="navbar-brand text-2xl font-bold text-spotify-text hover:text-spotify-green transition-colors">
+            DiscogMe
+        </a>
+        
+        <!-- Search Bar with Dropdown -->
+        <div class="flex-1 flex justify-center">
+            <div class="relative max-w-md w-full">
+                <input 
+                    type="search" 
+                    id="search-input"
+                    placeholder="Search artists..." 
+                    class="w-full bg-spotify-hover border border-spotify-border rounded-full px-4 py-2 text-spotify-text placeholder-spotify-text-secondary focus:outline-none focus:border-spotify-green transition-colors"
+                    aria-label="Search"
+                    autocomplete="off"
+                >
+                <div id="search-dropdown" class="absolute top-full mt-2 w-full bg-spotify-card border border-spotify-border rounded-lg shadow-lg z-50 max-h-80 overflow-y-auto hidden">
+                    <div id="dropdown-content" class="py-2"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Navigation Links -->
+        <div class="flex items-center space-x-6">
+            <a href="/albums" class="text-spotify-text-secondary hover:text-spotify-text transition-colors">Your Albums</a>
+            <a href="/search" class="text-spotify-text-secondary hover:text-spotify-text transition-colors">Search</a>
+            {% if logged_in %}
+                <a 
+                    href="{{ profile_url }}" 
+                    target="_blank"
+                    class="text-spotify-text hover:text-spotify-green transition-colors font-medium"
+                >
+                    Hello, {{ display_name }}
+                </a>
+            {% else %}
+                <a 
+                    href="/login" 
+                    class="bg-spotify-green hover:bg-spotify-green-hover text-white font-semibold py-2 px-6 rounded-full transition-all duration-200 hover:scale-105"
+                >
+                    Login
+                </a>
+            {% endif %}
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container mx-auto px-6 py-8 max-w-7xl">
+        <!-- Back Button -->
+        <button onclick="history.back()" class="mb-6 flex items-center text-spotify-text-secondary hover:text-spotify-text transition-colors">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+            </svg>
+            Back
+        </button>
+
+        <!-- Artist Header -->
+        <div id="artist-header" class="mb-8">
+            <div class="animate-pulse">
+                <div class="flex items-center space-x-6 mb-6">
+                    <div class="w-32 h-32 bg-spotify-border rounded-full"></div>
+                    <div class="flex-1">
+                        <div class="h-8 bg-spotify-border rounded mb-2 w-64"></div>
+                        <div class="h-4 bg-spotify-border rounded mb-2 w-32"></div>
+                        <div class="h-4 bg-spotify-border rounded w-48"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Albums Grid -->
+        <div class="mb-8">
+            <h2 class="text-2xl font-bold text-spotify-text mb-4">Albums</h2>
+            <div id="albums-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                <!-- Loading placeholders -->
+                <div class="animate-pulse" v-for="i in 12">
+                    <div class="aspect-square bg-spotify-border rounded-lg mb-3"></div>
+                    <div class="h-4 bg-spotify-border rounded mb-1"></div>
+                    <div class="h-3 bg-spotify-border rounded w-3/4"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const artistId = "{{ artist_id }}";
+        let searchTimeout;
+        let dropdownVisible = false;
+
+        // Search functionality
+        const searchInput = document.getElementById('search-input');
+        const searchDropdown = document.getElementById('search-dropdown');
+        const dropdownContent = document.getElementById('dropdown-content');
+
+        searchInput.addEventListener('input', (e) => {
+            const query = e.target.value.trim();
+            
+            clearTimeout(searchTimeout);
+            
+            if (query.length === 0) {
+                hideDropdown();
+                return;
+            }
+            
+            if (query.length >= 1) {
+                searchTimeout = setTimeout(() => performSearch(query), 200);
+            }
+        });
+
+        searchInput.addEventListener('focus', () => {
+            if (searchInput.value.trim() && dropdownContent.children.length > 0) {
+                showDropdown();
+            }
+        });
+
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                hideDropdown();
+                searchInput.blur();
+            }
+        });
+
+        // Hide dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!searchInput.contains(e.target) && !searchDropdown.contains(e.target)) {
+                hideDropdown();
+            }
+        });
+
+        async function performSearch(query) {
+            try {
+                const response = await fetch(`/api/search?q=${encodeURIComponent(query)}&limit=8`);
+                const data = await response.json();
+
+                if (data.error) throw new Error(data.error);
+
+                const artists = data.artists || [];
+                displayDropdownResults(artists);
+            } catch (error) {
+                console.error('Search error:', error);
+                hideDropdown();
+            }
+        }
+
+        function displayDropdownResults(artists) {
+            if (artists.length === 0) {
+                hideDropdown();
+                return;
+            }
+
+            dropdownContent.innerHTML = artists.map(artist => {
+                const image = artist.images?.[0]?.url || '';
+                const isExactMatch = artist.name.toLowerCase() === searchInput.value.toLowerCase().trim();
+                
+                return `
+                    <div class="flex items-center px-4 py-3 hover:bg-spotify-hover cursor-pointer border-l-4 ${isExactMatch ? 'border-spotify-green bg-spotify-hover' : 'border-transparent'}" 
+                         onclick="goToArtist('${artist.id}')">
+                        ${image ? 
+                            `<img src="${image}" alt="${artist.name}" class="w-10 h-10 rounded-full object-cover mr-3">` :
+                            `<div class="w-10 h-10 rounded-full bg-spotify-border flex items-center justify-center mr-3 text-sm">🎤</div>`
+                        }
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center">
+                                <span class="font-medium text-spotify-text truncate">${artist.name}</span>
+                                ${isExactMatch ? '<span class="text-xs bg-spotify-green text-white px-2 py-1 rounded-full ml-2">Match</span>' : ''}
+                            </div>
+                            <div class="text-sm text-spotify-text-secondary">
+                                ${artist.followers?.toLocaleString() || 0} followers
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            showDropdown();
+        }
+
+        function showDropdown() {
+            searchDropdown.classList.remove('hidden');
+            dropdownVisible = true;
+        }
+
+        function hideDropdown() {
+            searchDropdown.classList.add('hidden');
+            dropdownVisible = false;
+        }
+
+        function goToArtist(artistId) {
+            hideDropdown();
+            if (artistId === "{{ artist_id }}") {
+                searchInput.value = '';
+                return;
+            }
+            window.location.href = `/artist/${artistId}`;
+        }
+
+        // Load artist data
+        async function loadArtistData() {
+            try {
+                // Load artist info
+                const artistResponse = await fetch(`/api/artist/${artistId}/info`);
+                if (!artistResponse.ok) throw new Error('Failed to load artist info');
+                
+                const artistData = await artistResponse.json();
+                displayArtistHeader(artistData);
+
+                // Load artist albums
+                const albumsResponse = await fetch(`/api/artist/${artistId}/albums`);
+                if (!albumsResponse.ok) throw new Error('Failed to load albums');
+                
+                const albumsData = await albumsResponse.json();
+                displayAlbums(albumsData.items || []);
+
+            } catch (error) {
+                console.error('Error loading artist data:', error);
+                document.getElementById('artist-header').innerHTML = `
+                    <div class="text-center py-10">
+                        <div class="text-4xl mb-4">😕</div>
+                        <h2 class="text-xl font-semibold text-spotify-text mb-2">Failed to load artist</h2>
+                        <p class="text-spotify-text-secondary">There was an error loading this artist's information.</p>
+                    </div>
+                `;
+            }
+        }
+
+        function displayArtistHeader(artist) {
+            const image = artist.images?.[0]?.url || '';
+            
+            document.getElementById('artist-header').innerHTML = `
+                <div class="flex items-center space-x-6 mb-6">
+                    ${image ? 
+                        `<img src="${image}" alt="${artist.name}" class="w-32 h-32 rounded-full object-cover">` :
+                        `<div class="w-32 h-32 rounded-full bg-spotify-border flex items-center justify-center text-4xl">🎤</div>`
+                    }
+                    <div class="flex-1">
+                        <h1 class="text-4xl font-bold text-spotify-text mb-2">${artist.name}</h1>
+                        <div class="flex flex-wrap gap-4 text-spotify-text-secondary">
+                            <span>${artist.followers?.total?.toLocaleString() || 0} followers</span>
+                            <span>Popularity: ${artist.popularity || 0}/100</span>
+                        </div>
+                        ${artist.genres?.length > 0 ? 
+                            `<div class="flex flex-wrap gap-2 mt-3">
+                                ${artist.genres.slice(0, 4).map(genre => 
+                                    `<span class="bg-spotify-hover px-3 py-1 rounded-full text-sm text-spotify-text-secondary">${genre}</span>`
+                                ).join('')}
+                            </div>` : ''
+                        }
+                    </div>
+                </div>
+            `;
+        }
+
+        function displayAlbums(albums) {
+            if (albums.length === 0) {
+                document.getElementById('albums-grid').innerHTML = `
+                    <div class="col-span-full text-center py-10">
+                        <div class="text-4xl mb-4">💿</div>
+                        <h3 class="text-xl font-semibold text-spotify-text mb-2">No albums found</h3>
+                        <p class="text-spotify-text-secondary">This artist doesn't have any albums available.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            document.getElementById('albums-grid').innerHTML = albums.map(album => {
+                const image = album.images?.[0]?.url || '';
+                const year = album.release_date?.substring(0, 4) || '';
+                
+                return `
+                    <div class="bg-spotify-card rounded-lg p-4 hover:bg-spotify-hover transition-all duration-200 cursor-pointer group" onclick="selectAlbum('${album.id}')">
+                        ${image ? 
+                            `<img src="${image}" alt="${album.name}" class="w-full aspect-square object-cover rounded-lg mb-3 group-hover:shadow-lg transition-shadow">` :
+                            `<div class="w-full aspect-square bg-spotify-border rounded-lg mb-3 flex items-center justify-center text-2xl">💿</div>`
+                        }
+                        <h3 class="font-semibold text-spotify-text text-sm mb-1 line-clamp-2">${album.name}</h3>
+                        <p class="text-xs text-spotify-text-secondary">
+                            ${year}${album.album_type ? ` • ${album.album_type}` : ''}
+                            ${album.total_tracks ? ` • ${album.total_tracks} tracks` : ''}
+                        </p>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function selectAlbum(albumId) {
+            try {
+                const response = await fetch(`/api/album/${albumId}`);
+                const albumData = await response.json();
+                
+                if (albumData.error) throw new Error(albumData.error);
+                
+                sessionStorage.setItem('selectedAlbum', JSON.stringify(albumData));
+                window.location.href = '/album-songs';
+            } catch (error) {
+                console.error('Error selecting album:', error);
+            }
+        }
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', () => {
+            loadArtistData();
+        });
+    </script>
+
+    <style>
+        .line-clamp-2 {
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+    </style>
+</body>
+</html>

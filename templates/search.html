@@ -44,7 +44,7 @@
                     type="search" 
                     id="search-input"
                     placeholder="Search for artists..." 
-                    class="search-input w-full"
+                    class="w-full bg-spotify-hover border border-spotify-border rounded-full px-4 py-2 text-spotify-text placeholder-spotify-text-secondary focus:outline-none focus:border-spotify-green transition-colors"
                     aria-label="Search"
                     value="{{ request.args.get('q', '') }}"
                     autocomplete="off"
@@ -140,7 +140,10 @@
                 return;
             }
             
-            searchTimeout = setTimeout(() => performSearch(query), 150);
+            // Allow single character searches for artists like "U2", "X", etc.
+            if (query.length >= 1) {
+                searchTimeout = setTimeout(() => performSearch(query), 100);
+            }
         });
 
         searchInput.addEventListener('keypress', (e) => {
@@ -230,15 +233,23 @@
         function createArtistCard(artist) {
             const image = artist.images?.[0]?.url || '';
             
+            // Check if this is an exact match to highlight it
+            const isExactMatch = artist.name.toLowerCase() === currentQuery.toLowerCase();
+            const cardClass = isExactMatch ? 'bg-spotify-card border-2 border-spotify-green' : 'bg-spotify-card';
+            const exactMatchBadge = isExactMatch ? '<span class="text-xs bg-spotify-green text-white px-2 py-1 rounded-full ml-2">Exact Match</span>' : '';
+            
             return `
-                <div class="bg-spotify-card rounded-lg p-6 hover:bg-spotify-hover transition-all duration-200 cursor-pointer mb-8" onclick="loadArtistAlbums('${artist.id}')">
+                <div class="${cardClass} rounded-lg p-6 hover:bg-spotify-hover transition-all duration-200 cursor-pointer mb-8" onclick="loadArtistAlbums('${artist.id}')">
                     <div class="flex items-start space-x-6">
                         <div class="flex-shrink-0">
                             ${image ? `<img src="${image}" alt="${artist.name}" class="w-24 h-24 rounded-full object-cover">` : 
-                                     `<div class="w-24 h-24 rounded-full bg-spotify-border flex items-center justify-center text-2xl">🎤</div>`}
+                                     `<div class="w-24 h-24 rounded-full bg-spotify-border flex items-center justify-center text-2xl"></div>`}
                         </div>
                         <div class="flex-1 min-w-0">
-                            <h3 class="text-2xl font-bold text-spotify-text mb-2">${artist.name}</h3>
+                            <div class="flex items-center flex-wrap">
+                                <h3 class="text-2xl font-bold text-spotify-text mb-2">${artist.name}</h3>
+                                ${exactMatchBadge}
+                            </div>
                             <div class="flex flex-wrap gap-4 text-sm text-spotify-text-secondary">
                                 <span>${artist.followers?.toLocaleString() || 0} followers</span>
                                 ${artist.genres?.length > 0 ? `<span>${artist.genres.slice(0, 2).join(', ')}</span>` : ''}
@@ -298,10 +309,9 @@
         function createAlbumCard(album) {
             const image = album.images?.[0]?.url || '';
             const year = album.release_date?.substring(0, 4) || '';
-            const artists = album.artists || [];
             
             return `
-                <div class="bg-spotify-hover rounded-lg p-4 hover:bg-opacity-80 transition-all duration-200 cursor-pointer" onclick="selectAlbumWithData('${album.id}', '${album.name.replace(/'/g, "\\'")}'${image ? `, '${image}'` : ''})">
+                <div class="bg-spotify-hover rounded-lg p-4 hover:bg-opacity-80 transition-all duration-200 cursor-pointer" onclick="selectAlbumWithData('${album.id}', '${album.name.replace(/'/g, "\\'")}', '${image}')">
                     ${image ? `<img src="${image}" alt="${album.name}" class="w-full aspect-square object-cover rounded-lg mb-3">` : 
                              `<div class="w-full aspect-square bg-spotify-border rounded-lg mb-3 flex items-center justify-center text-2xl">💿</div>`}
                     <h4 class="font-semibold text-spotify-text text-sm mb-1 line-clamp-2">${album.name}</h4>
@@ -312,7 +322,7 @@
             `;
         }
 
-        async function selectAlbumWithData(albumId, albumName, albumImage = '') {
+        async function selectAlbumWithData(albumId, albumName, albumImage) {
             try {
                 const response = await fetch(`/api/album/${albumId}`);
                 const albumData = await response.json();

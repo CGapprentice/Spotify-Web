@@ -40,3 +40,30 @@ def album_songs_page():
                          logged_in=True, 
                          display_name=display_name, 
                          profile_url=profile_url)
+
+@pages_bp.route('/search')
+def search_page():
+    if not is_authenticated():
+        return redirect('/login')
+    
+    display_name = session.get('display_name')
+    profile_url = session.get('profile_url')
+    
+    return render_template('search.html', 
+                         logged_in=True, 
+                         display_name=display_name, 
+                         profile_url=profile_url)
+
+@pages_bp.route('/artist/<artist_id>')
+def artist_page(artist_id):
+    if not is_authenticated():
+        return redirect('/login')
+    
+    display_name = session.get('display_name')
+    profile_url = session.get('profile_url')
+    
+    return render_template('artist.html', 
+                         logged_in=True, 
+                         display_name=display_name, 
+                         profile_url=profile_url,
+                         artist_id=artist_id)
